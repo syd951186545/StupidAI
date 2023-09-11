@@ -283,8 +283,9 @@ def visual_enemy_decorator(enemy_step):
 
 
 class SoldierGameEnv:
-    MAX_ROUNDS = 100
-    REWARD_WIN = 100
+    MAX_ROUNDS = config.Training.MAX_ROUNDS
+    REWARD_WIN = 20
+    REWARD_LOSE = -20
     REWARD_DEFAULT = 0
     REWARD_ATTACK_ENEMY = 2
     REWARD_WALK_TO_ENEMY = 0
@@ -472,11 +473,11 @@ class SoldierGameEnv:
         # TODO Reward
         if len(self.teamEnemy) == 0:
             for _id, soldier in self.soldier_reward.items():
-                self.soldier_reward[_id] += self.REWARD_WIN * (100 - self.cur_round) / 100
+                self.soldier_reward[_id] += self.REWARD_WIN * (1 - self.cur_round / self.MAX_ROUNDS)
             return [True, ] * 10
         elif len(self.teamOur) == 0:
             return [True, ] * 10
-        elif self.cur_round >= 100:
+        elif self.cur_round >= self.MAX_ROUNDS:
             return [True, ] * 10
         else:
             return [False, ] * 10

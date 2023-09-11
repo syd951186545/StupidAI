@@ -49,7 +49,7 @@ class Training:
     game_visible_pause = 0.01  # int, 暂停多少秒
     check_trans_state = False  # 检查状态转换成tensor是否正确
 
-    MAX_STEPS = 100  # 每场对局最大的运行回合，指步数或者游戏帧数
+    MAX_ROUNDS = 10000  # 每场对局最大的运行回合，指步数或者游戏帧数
     epoch = 10  # 每一场数据用来训练的次数
     trajectory_nums = 500  # 经验池中的trajectory数量
     entropy_beta = 0.1  # 动作概率分布熵，增大时 增加熵在loss中的占比，该值倾向探索
