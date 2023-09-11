@@ -3,13 +3,28 @@ from keras.layers import TimeDistributed, Conv2D, Dropout, Flatten, Dense, Atten
 import tensorflow as tf
 
 
-def ActorLiner():
+def ActorGlobalLiner():
+    block = Sequential([
+        Dense(256, activation='relu'),
+        Dropout(0.2),
+    ], name="ActorGlobalLiner")
+    return block
+
+
+def ActorLoacalLiner():
     block = TimeDistributed(Sequential([
         Dense(256, activation='relu'),
+        Dropout(0.2),
+    ], name="ActorLoacalLiner"))
+    return block
+
+
+def OutputLiner():
+    block = TimeDistributed(Sequential([
         Dense(64, activation='relu'),
-        Dropout(0.1),
+        Dropout(0.2),
         Dense(9, activation='softmax')
-    ], name="output"))
+    ], name="OutputLiner"))
     return block
 
 
@@ -17,7 +32,7 @@ def CriticLiner():
     block = TimeDistributed(Sequential([
         Dense(256, activation='relu'),
         Dense(64, activation='relu'),
-        Dropout(0.1),
+        Dropout(0.2),
         Dense(1)
     ], name="output"))
     return block
@@ -30,20 +45,27 @@ def CNN_strides2(name, input_channels):
         # AveragePooling2D(pool_size=(2, 2)),
         Conv2D(128, (3, 3), strides=2, activation='relu'),
         # AveragePooling2D(pool_size=(2, 2)),
-        Dropout(0.1),
+        Dropout(0.2),
     ]), name=name)
     return _block
 
 
-def CNN_strides1(name, input_channels):
-    _block = TimeDistributed(Sequential([
+def CNN(name, input_channels):
+    _block = Sequential([
         Conv2D(32, (3, 3), input_shape=(21, 21, input_channels), activation='relu'),
         Conv2D(64, (3, 3), activation='relu'),
-        # AveragePooling2D(pool_size=(2, 2)),
-        Conv2D(128, (3, 3), activation='relu'),
-        # AveragePooling2D(pool_size=(2, 2)),
         Dropout(0.1),
-    ]), name=name)
+        # AveragePooling2D(pool_size=(2, 2)),
+        Conv2D(64, (3, 3), activation='relu'),
+        # AveragePooling2D(pool_size=(2, 2)),
+        Dropout(0.2),
+        Flatten()
+    ], name=name)
+    return _block
+
+
+def TimeDistributed_CNN(name, input_channels):
+    _block = TimeDistributed(CNN(name, input_channels))
     return _block
 
 

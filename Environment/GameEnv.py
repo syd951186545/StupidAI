@@ -1,3 +1,4 @@
+import copy
 import random
 import matplotlib
 from sklearn.cluster import KMeans
@@ -79,6 +80,8 @@ def distances_centers(old_pos, new_pos, centers):
 
 
 matplotlib.use('TkAgg')
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 plt.ion()
 plt.show(block=False)
 
@@ -93,102 +96,199 @@ def step_visual_decorator(step):
         for element in self.elements_to_clear:
             element.remove()
         self.elements_to_clear.clear()
-        # 绘制敌我士兵
-        for x in range(self.width):
-            for y in range(self.height):
-                if self.map[x, y] == 1:  # Our soldier
-                    our = plt.Rectangle((x, y), 1, 1, color='blue')
-                    self.ax.add_patch(our)
-                    self.elements_to_clear.append(our)
-                elif self.map[x, y] == 2:  # Enemy soldier
-                    enemy = plt.Rectangle((x, y), 1, 1, color='red')
-                    self.ax.add_patch(enemy)
-                    self.elements_to_clear.append(enemy)
+        if not self.title_round:
+            self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top', horizontalalignment='left')
+        else:
+            self.title_round.remove()
+            self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top', horizontalalignment='left')
+        # 1、绘制敌我士兵
+        old_enemy_soldiers = {role_id: copy.deepcopy(soldier) for role_id, soldier in self.teamEnemy.items()}
+        old_our_soldiers = {role_id: copy.deepcopy(soldier) for role_id, soldier in self.teamOur.items()}
+        for role_id, soldier in old_enemy_soldiers.items():
+            if role_id not in self.teamEnemy:
+                continue
+            if soldier.hp <= 0:
+                continue
+            hp = soldier.hp
+            side_length = max(0.2, hp / 100)
+            enemy = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkred')
+            self.ax.add_patch(enemy)
+            self.elements_to_clear.append(enemy)
 
-        old_our_soldiers = {role_id: soldier for role_id, soldier in self.teamOur.items()}
-        old_enemy_soldiers = {role_id: soldier for role_id, soldier in self.teamEnemy.items()}
-        # Backup the old positions of our soldiers
-        old_our_positions = {role_id: (soldier.x, soldier.y) for role_id, soldier in self.teamOur.items()}
-        old_enemy_positions = {role_id: (soldier.x, soldier.y) for role_id, soldier in self.teamEnemy.items()}
+            hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+            self.elements_to_clear.append(hp_label)
+        for role_id, soldier in old_our_soldiers.items():
+            if role_id not in self.teamOur:
+                continue
+            if soldier.hp <= 0:
+                continue
+            hp = soldier.hp
+            side_length = max(0.2, hp / 100)
+            our = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkblue')
+            self.ax.add_patch(our)
+            self.elements_to_clear.append(our)
 
-        # 地图更新移动到下一个状态
+            hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+            self.elements_to_clear.append(hp_label)
+
+        # 2、地图更新移动到下一个状态
         result = step(self, actions_json_dict)
 
-        # 绘制我方移动箭头
-        for soldier_action in actions_json_dict['soldiers']:
-            role_id = soldier_action["roleId"]
+        # 3、绘制我方移动箭头和移动获取的reward
+        for role_id, soldier in self.teamOur.items():
             reward = self.soldier_reward[role_id]
-            hp = self.teamOur[role_id].hp
-            if role_id in self.teamOur:
-                old_x, old_y = old_our_positions[role_id]
-                for pos in soldier_action["posList"]:
-                    tar_x, tar_y = pos["x"], pos["y"]
-                    arrow = FancyArrowPatch((old_x + 0.5, old_y + 0.5), (tar_x + 0.5, tar_y + 0.5),
-                                            arrowstyle='-|>', mutation_scale=15, color='blue')
-                    self.ax.add_patch(arrow)
-                    self.elements_to_clear.append(arrow)
+            old_x, old_y = old_our_soldiers[role_id].x, old_our_soldiers[role_id].y
+            tar_x, tar_y = soldier.x, soldier.y
+            arrow = FancyArrowPatch((old_x + 0.5, old_y + 0.5), (tar_x + 0.5, tar_y + 0.5),
+                                    arrowstyle='-|>', mutation_scale=15, color='purple')
+            self.ax.add_patch(arrow)
+            self.elements_to_clear.append(arrow)
 
-                    reward_label = self.ax.text(tar_x, tar_y, str(reward), fontsize=9, color='green')
-                    self.elements_to_clear.append(reward_label)
-
-                    hp_label = self.ax.text(old_x, old_y, str(hp), fontsize=9, color='yellow')
-                    self.elements_to_clear.append(hp_label)
-
-        new_enemy_positions = {role_id: (soldier.x, soldier.y) for role_id, soldier in self.teamEnemy.items()}
-        # 绘制敌方移动箭头
-        for role_id, soldier in old_enemy_soldiers.items():
-            if role_id in new_enemy_positions:
-                hp = self.teamEnemy[role_id].hp
-                old_x, old_y = old_enemy_positions[role_id]
-                tar_x, tar_y = new_enemy_positions[role_id]
-                arrow = FancyArrowPatch((old_x + 0.5, old_y + 0.5), (tar_x + 0.5, tar_y + 0.5),
-                                        arrowstyle='-|>', mutation_scale=15, color='red')
-                self.elements_to_clear.append(arrow)
-                self.ax.add_patch(arrow)
-
-                hp_label = self.ax.text(old_x, old_y, str(hp), fontsize=9, color='yellow')
-                self.elements_to_clear.append(hp_label)
-
+            reward_label = self.ax.text(tar_x, tar_y, str(reward), fontsize=9, color='purple')
+            self.elements_to_clear.append(reward_label)
         plt.draw()
-        if config.Training.game_visible_pause:
-            plt.pause(config.Training.game_visible_pause)
+        plt.pause(config.Training.game_visible_pause)
         for element in self.elements_to_clear:
             element.remove()
         self.elements_to_clear.clear()
 
-        # 绘制地图元素
-        for x in range(self.width):
-            for y in range(self.height):
-                if self.map[x, y] == 1:  # Our soldier
-                    our = plt.Rectangle((x, y), 1, 1, color='blue')
-                    self.ax.add_patch(our)
-                    self.elements_to_clear.append(our)
-                elif self.map[x, y] == 2:  # Enemy soldier
-                    enemy = plt.Rectangle((x, y), 1, 1, color='red')
-                    self.ax.add_patch(enemy)
-                    self.elements_to_clear.append(enemy)
+        # 清除元素后 重绘制敌我士兵
+        new_enemy_soldiers = {role_id: soldier for role_id, soldier in self.teamEnemy.items()}
+        new_our_soldiers = {role_id: soldier for role_id, soldier in self.teamOur.items()}
+        for role_id, soldier in new_enemy_soldiers.items():
+            if role_id not in self.teamEnemy:
+                continue
+            if soldier.hp <= 0:
+                continue
+            hp = soldier.hp
+            side_length = max(0.2, hp / 100)
+            enemy = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkred')
+            self.ax.add_patch(enemy)
+            self.elements_to_clear.append(enemy)
 
+            hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+            self.elements_to_clear.append(hp_label)
+        for role_id, soldier in new_our_soldiers.items():
+            if role_id not in self.teamOur:
+                continue
+            if soldier.hp <= 0:
+                continue
+            hp = soldier.hp
+            side_length = max(0.2, hp / 100)
+            our = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkblue')
+            self.ax.add_patch(our)
+            self.elements_to_clear.append(our)
+
+            hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+            self.elements_to_clear.append(hp_label)
         plt.draw()
-        if config.Training.game_visible_pause:
-            plt.pause(config.Training.game_visible_pause)
+        plt.pause(config.Training.game_visible_pause)
         return result
 
     return visual_step
 
 
-# def visual_render_decorator(render):
-#     def visual_render(self):
-#         return render(self)
-#     return visual_render
+def visual_enemy_decorator(enemy_step):
+    def visual_render(self):
+        if not self.visible:
+            return enemy_step(self)
+        else:
+            for element in self.elements_to_clear:
+                element.remove()
+            self.elements_to_clear.clear()
+            # 1、绘制我方士兵和敌方士兵
+            our_soldiers = {role_id: soldier for role_id, soldier in self.teamOur.items()}
+            for role_id, soldier in our_soldiers.items():
+                if role_id not in self.teamOur:
+                    continue
+                if soldier.hp <= 0:
+                    continue
+                hp = soldier.hp
+                side_length = max(0.2, hp / 100)
+                our = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkblue')
+                self.ax.add_patch(our)
+                self.elements_to_clear.append(our)
+
+                hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+                self.elements_to_clear.append(hp_label)
+            old_enemy_soldiers = {role_id: soldier for role_id, soldier in self.teamEnemy.items()}
+            for role_id, soldier in old_enemy_soldiers.items():
+                if role_id not in self.teamEnemy:
+                    continue
+                if soldier.hp <= 0:
+                    continue
+                hp = soldier.hp
+                side_length = max(0.2, hp / 100)
+                enemy = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkred')
+                self.ax.add_patch(enemy)
+                self.elements_to_clear.append(enemy)
+
+                hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+                self.elements_to_clear.append(hp_label)
+            plt.draw()
+            plt.pause(config.Training.game_visible_pause)
+            # 2、模拟移动和攻击
+            enemy_step(self)
+            # 3、绘制敌方移动箭头
+            new_enemy_soldiers = {role_id: soldier for role_id, soldier in self.teamEnemy.items()}
+            for role_id, soldier in old_enemy_soldiers.items():
+                if role_id in new_enemy_soldiers:
+                    hp = self.teamEnemy[role_id].hp
+                    old_x, old_y = old_enemy_soldiers[role_id].x, old_enemy_soldiers[role_id].y
+                    tar_x, tar_y = new_enemy_soldiers[role_id].x, new_enemy_soldiers[role_id].y
+                    arrow = FancyArrowPatch((old_x + 0.5, old_y + 0.5), (tar_x + 0.5, tar_y + 0.5),
+                                            arrowstyle='-|>', mutation_scale=15, color='purple')
+                    self.elements_to_clear.append(arrow)
+                    self.ax.add_patch(arrow)
+
+                    hp_label = self.ax.text(old_x, old_y, str(hp), fontsize=9, color='gold')
+                    self.elements_to_clear.append(hp_label)
+            plt.draw()
+            plt.pause(config.Training.game_visible_pause)
+            # 4、清除元素后重新绘制敌方士兵位置和绘制我方士兵
+            for element in self.elements_to_clear:
+                element.remove()
+            self.elements_to_clear.clear()
+            our_soldiers = {role_id: soldier for role_id, soldier in self.teamOur.items()}
+            for role_id, soldier in our_soldiers.items():
+                if role_id not in self.teamOur:
+                    continue
+                if soldier.hp <= 0:
+                    continue
+                hp = soldier.hp
+                side_length = max(0.2, hp / 100)
+                our = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkblue')
+                self.ax.add_patch(our)
+                self.elements_to_clear.append(our)
+
+                hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+                self.elements_to_clear.append(hp_label)
+            for role_id, soldier in new_enemy_soldiers.items():
+                if role_id not in self.teamEnemy:
+                    continue
+                if soldier.hp <= 0:
+                    continue
+                hp = soldier.hp
+                side_length = max(0.2, hp / 100)
+                enemy = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkred')
+                self.ax.add_patch(enemy)
+                self.elements_to_clear.append(enemy)
+
+                hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
+                self.elements_to_clear.append(hp_label)
+
+    return visual_render
 
 
 class SoldierGameEnv:
     MAX_ROUNDS = 100
+    REWARD_WIN = 100
     REWARD_DEFAULT = 0
     REWARD_ATTACK_ENEMY = 2
     REWARD_WALK_TO_ENEMY = 0
     REWARD_WALK = 0
     REWARD_NOT_WALK = -1
+    REWARD_DANGER = -1
     REWARD_CONFLICT = -1
     REWARD_EXCEPTION = -2
     height, width = 21, 21
@@ -203,6 +303,7 @@ class SoldierGameEnv:
         self.teamOur = {}
         self.teamEnemy = {}
         self.our_attack_dict = {}
+        self.enemy_attack_dict = {}
         self.cur_round = 0
         self.totalScore = 0
         self.soldier_reward = defaultdict(int)
@@ -216,6 +317,7 @@ class SoldierGameEnv:
             return
         plt.close()
         self.fig, self.ax = plt.subplots()
+        self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top', horizontalalignment='left')
         self.ax.set_xticks(np.arange(0, self.width + 1, 5))
         self.ax.set_yticks(np.arange(0, self.height + 1, 5))
         self.ax.set_xlim(0, self.width)
@@ -233,19 +335,22 @@ class SoldierGameEnv:
                 if self.map[x, y] == -1:  # Mountain
                     self.ax.add_patch(plt.Rectangle((x, y), 1, 1, color='black'))
                 elif self.map[x, y] == 1:  # Our soldier
-                    our = plt.Rectangle((x, y), 1, 1, color='blue')
+                    our = plt.Rectangle((x, y), 1, 1, color='darkblue')
                     self.ax.add_patch(our)
                     self.elements_to_clear.append(our)
                 elif self.map[x, y] == 2:  # Enemy soldier
-                    enemy = plt.Rectangle((x, y), 1, 1, color='red')
+                    enemy = plt.Rectangle((x, y), 1, 1, color='darkred')
                     self.ax.add_patch(enemy)
                     self.elements_to_clear.append(enemy)
 
     def __init_step(self):
         self.cur_round += 1
         # 清除reward
-        for key, value in self.soldier_reward.items():
-            self.soldier_reward[key] = self.REWARD_DEFAULT
+        self.soldier_reward.clear()
+        for _id, soldier in self.teamOur.items():
+            loss_hp = (soldier.max_respawn - soldier.life) * 100 + (100 - soldier.hp)
+            loss_hp /= 100
+            self.soldier_reward[_id] = self.REWARD_DEFAULT
 
     def __init_map(self):
         self.map = np.zeros((self.width, self.height), dtype=int)
@@ -287,7 +392,7 @@ class SoldierGameEnv:
         for i, (x, y) in enumerate(coordinates_enemy):
             soldier_type = 'special' if i < 2 else 'artillery' if i < 5 else 'infantry'
             self.map[x, y] = 2  # 敌方士兵
-            self.teamEnemy[i] = Soldier(i, soldier_type, x, y, 300, 0)
+            self.teamEnemy[i] = Soldier(i, soldier_type, x, y, 100, 2)
 
         for x, y in coordinates_mountain:
             self.map[x, y] = -1  # 障碍物山地
@@ -354,12 +459,21 @@ class SoldierGameEnv:
         self.__init_step()
         target_soldier_pos, conflicts, exception = self.__pre_check(actions_json_dict['soldiers'])
         self.__move(target_soldier_pos)
-        # 敌军随机移动
-        self.__enemy_move()
+        # if self.cur_round % 10 == 0:
+        #     # 敌军随机移动10步，我们的智能体面对的场景都是敌军不动的
+        #     for i in range(10):
+        #         self.__enemy_move()
         return self.render()
 
     def __is_game_done(self):
-        if self.cur_round >= 100 or len(self.teamEnemy) == 0:
+        # TODO Reward
+        if len(self.teamEnemy) == 0:
+            for _id,soldier in self.soldier_reward.items():
+                self.soldier_reward[_id] += self.REWARD_WIN*(100-self.cur_round)/100
+            return [True, ] * 10
+        elif len(self.teamOur) == 0:
+            return [True, ] * 10
+        elif self.cur_round >= 100:
             return [True, ] * 10
         else:
             return [False, ] * 10
@@ -467,8 +581,11 @@ class SoldierGameEnv:
                         possible_moves.append((new_x, new_y))
         return possible_moves
 
+    # @visual_enemy_decorator
     def __enemy_move(self):
-        for _id, enemy_soldier in self.teamEnemy.items():
+        enemy_ids = list(self.teamEnemy.keys())
+        for _id in enemy_ids:
+            enemy_soldier = self.teamEnemy[_id]
             possible_moves = self.__find_possible_moves(enemy_soldier)
             if possible_moves:
                 new_x, new_y = random.choice(possible_moves)
@@ -477,6 +594,7 @@ class SoldierGameEnv:
                 self.map[new_x][new_y] = 2
                 enemy_soldier.x = new_x
                 enemy_soldier.y = new_y
+                self.__enemy_attack(enemy_soldier)
 
     def __attack(self, soldier: Soldier):
         """
@@ -500,43 +618,89 @@ class SoldierGameEnv:
                 # 找到这个敌方士兵，攻击若杀掉则清除他
                 for id, enemy_soldier in self.teamEnemy.items():
                     if (enemy_soldier.x, enemy_soldier.y) == (att_x, att_y):
-                        # 判断该我是否在10个回合内攻击过该士兵
-                        if self.__update_attacked_enemy(soldier, enemy_soldier):
+                        # 判断该我是否在10个回合内攻击过该士兵,True则
+                        if self.__check_and_attack(soldier, enemy_soldier):
                             enemy_soldier.hp -= soldier.attack
                         if enemy_soldier.hp <= 0:
-                            self.map[att_x][att_y] = 0
                             enemy_ids_be_killed.append(enemy_soldier.id)
         for e_id in enemy_ids_be_killed:
-            self.teamEnemy.pop(e_id)
+            self.teamEnemy[e_id].life -= 1
+            self.teamEnemy[e_id].hp = 100
+            if self.teamEnemy[e_id].life <= 0:
+                self.map[self.teamEnemy[e_id].x][self.teamEnemy[e_id].y] = 0
+                self.teamEnemy.pop(e_id)
 
-    def __update_attacked_enemy(self, our_soldier, enemy_soldier):
+    def __enemy_attack(self, soldier: Soldier):
         """
-        维护一个攻击列表{our_id:[{enemy_id:rounds}),]}
+        soldier 敌方随机游走攻击周围8个点位，
+        :param soldier: enemy
+        :return:
+        """
+        directions = [
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1), (0, 1),
+            (1, -1), (1, 0), (1, 1)
+        ]
+        our_ids_be_killed = []
+        for dx, dy in directions:
+            att_x, att_y = soldier.x + dx, soldier.y + dy
+            # 攻击超出地图范围，跳过
+            if min(att_x, att_y) < 0 or max(att_x, att_y) >= min(self.width, self.height):
+                continue
+            # 检查相邻点的敌人,并攻击，此处仅触发攻击回报
+            if self.map[att_x][att_y] == 1:
+                # 找到这个敌方士兵，攻击若杀掉则清除他
+                for id, our_soldier in self.teamOur.items():
+                    if (our_soldier.x, our_soldier.y) == (att_x, att_y):
+                        # 判断该我是否在10个回合内攻击过该士兵
+                        if self.__check_and_attack(soldier, our_soldier, our_att=False):
+                            our_soldier.hp -= soldier.attack
+                        if our_soldier.hp <= 0:
+                            self.map[att_x][att_y] = 0
+                            our_ids_be_killed.append(our_soldier.id)
+        for o_id in our_ids_be_killed:
+            self.teamOur[o_id].life -= 1
+            self.teamOur[o_id].hp = 100
+            if self.teamOur[o_id].life <= 0:
+                self.teamOur.pop(o_id)
+
+    def __check_and_attack(self, our_soldier, enemy_soldier, our_att=True):
+        """
+        维护一个攻击列表{our_id:{enemy_id:rounds}),}
         表示该敌方Soldier在rounds回合时被我方our_id攻击过这个id，10个rounds内再攻击不得分。
         :param our_soldier: 我士兵
         :param enemy_soldier: 待判断当前敌方士兵是否可以攻击
-        :return: 可攻击则True，不可攻击则False
+        :return: 可攻击则攻击并返回True，不可攻击则False
         """
-        if our_soldier.id not in self.our_attack_dict:
+        if our_att:
+            _dict = self.our_attack_dict
+        else:
+            _dict = self.enemy_attack_dict
+        if our_soldier.id not in _dict:
             # 当前我士兵不在攻击列表中，则记录攻击时的回合数并加分
-            self.our_attack_dict.update({our_soldier.id: [{enemy_soldier.id: self.cur_round}]})
-            self.soldier_reward[our_soldier.id] += self.REWARD_ATTACK_ENEMY
+            _dict.update({our_soldier.id: {enemy_soldier.id: self.cur_round}})
+            if our_att:
+                self.soldier_reward[our_soldier.id] += self.REWARD_ATTACK_ENEMY
             return True
         else:
+            check_enemy_id_in_att_list = [_id_with_his_round for _id_with_his_round in _dict[our_soldier.id].keys()]
             # 我方士兵有攻击列表，但攻击列表中没有该敌方士兵，则攻击一下
-            if enemy_soldier.id not in self.our_attack_dict[our_soldier.id]:
-                self.our_attack_dict[our_soldier.id].append({enemy_soldier.id: self.cur_round})
-                self.soldier_reward[our_soldier.id] += self.REWARD_ATTACK_ENEMY
+            if enemy_soldier.id not in check_enemy_id_in_att_list:
+                _dict[our_soldier.id].update({enemy_soldier.id: self.cur_round})
+                if our_att:
+                    self.soldier_reward[our_soldier.id] += self.REWARD_ATTACK_ENEMY
                 return True
             else:
-                # 我方士兵有攻击列表，且该士兵之前攻击过
-                for i, (enemy_soldier_id, his_round) in enumerate(self.our_attack_dict[our_soldier.id]):
-                    # 遍历列表，找到该敌方士兵
+                # 我方士兵有攻击列表，且攻击列表中有该敌方士兵，则判断是否在10个回合内攻击过
+                for i, (enemy_soldier_id, his_round) in enumerate(_dict[our_soldier.id].items()):
                     if enemy_soldier.id == enemy_soldier_id:
                         if self.cur_round - his_round > 10:
                             # 更新攻击时的回合数，并增加奖励
-                            self.our_attack_dict[our_soldier.id][i][enemy_soldier_id] = self.cur_round
-                            self.soldier_reward[our_soldier.id] += self.REWARD_ATTACK_ENEMY
+                            _dict[our_soldier.id][enemy_soldier_id] = self.cur_round
+                            if our_att:
+                                self.soldier_reward[our_soldier.id] += self.REWARD_ATTACK_ENEMY
                             return True
+                        # 在10个回合内攻击过该敌方士兵，则不得分,且此刻处在危险区域
                         else:
+                            self.soldier_reward[our_soldier.id] += self.REWARD_DANGER
                             return False

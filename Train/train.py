@@ -97,7 +97,10 @@ def data_generator(tra_datasets):
 
 def __TrainLoop(env, sample_agent, agent):
     for episode in range(config.Training.EPOCH):
+        # 每一个回合开始都要重置隐藏状态
+        agent.actor_model.reset_hidden_states()
         if sample_agent:
+            sample_agent.actor_model.reset_hidden_states()
             tra_datasets = collect_data(env, sample_agent)
         else:
             tra_datasets = collect_data(env, agent)
@@ -119,9 +122,11 @@ def __TrainLoop(env, sample_agent, agent):
             tf.TensorSpec(shape=(None, 1), dtype=tf.bool)
         )).batch(100, drop_remainder=False)
 
+        # 采集完数据后，重置隐藏状态，因为采集过程中隐藏状态已经被更新了
+        agent.actor_model.reset_hidden_states()
         for batch in dataset:
             batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = batch
-            agent.update(episode, batch_inputs=batch)
+            agent.train(episode, batch_inputs=batch)
             avg_reward = tf.reduce_mean(batch_rewards)
             with config.Training.training_tf_writer.as_default():
                 tf.summary.scalar("Average_Reward", avg_reward, step=episode)
@@ -130,8 +135,11 @@ def __TrainLoop(env, sample_agent, agent):
             logger.info(f"Episode: {episode}, negative values: {negative_values}")
         if episode % 10 == 0:
             agent.save_model_ckpt(episode // 10)
+            env.visible = False
             if sample_agent:
                 sample_agent.load_model_ckpt(training=True)
+        if episode % 50 == 0:
+            env.visible = True
 
 
 if __name__ == '__main__':

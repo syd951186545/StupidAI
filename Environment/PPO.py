@@ -91,6 +91,30 @@ class PPOAgent:
             tf.summary.scalar("Actor Loss", args[0].numpy(), step=step)
             tf.summary.scalar("Critic Loss", args[1][0], step=step)
 
+    def train(self, episode, batch_inputs):
+        """
+         手动循环，训练模型，梯度累计平均更新
+        :param episode:
+        :param batch_inputs:
+        :return:
+        """
+        batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = batch_inputs
+        accumulated_grads = [tf.zeros_like(var) for var in self.actor_model.trainable_variables]
+        for t in range(100):
+            # 提取每一帧的数据，手动循环以更新隐藏状态
+            state = tuple([s[t:t + 1] for s in batch_states])  # 注意：保持维度
+            action = batch_actions[t:t + 1]
+            next_state = tuple([s[t:t + 1] for s in batch_next_states])
+            reward = batch_rewards[t:t + 1]
+            done = batch_dones[t:t + 1]
+            _input = (state, action, next_state, reward, done)
+            grads = self.update(t, batch_inputs=_input)
+            accumulated_grads = [acc_grad + grad for acc_grad, grad in zip(accumulated_grads, grads)]
+
+        averaged_grads = [grad / 100 for grad in accumulated_grads]
+        # 应用累积梯度
+        self.actor_optimizer.apply_gradients(zip(averaged_grads, self.actor_model.trainable_variables))
+
     def update(self, episode, batch_inputs):
         batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = batch_inputs
         batch_size, num_agents = batch_actions.shape[0], batch_actions.shape[1]
@@ -142,11 +166,12 @@ class PPOAgent:
             tape.watch(self.actor_model.trainable_variables)
             # Compute gradients and perform a policy update
             actor_grads = tape.gradient(actor_loss, self.actor_model.trainable_variables)
-            self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor_model.trainable_variables))
-
+            # 一整个批次应用梯度
+            # self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor_model.trainable_variables))
             self.scalar_record(self.epoch * episode + i, actor_loss, critic_history.history['loss'], )
             logger.info(f"Episode: {episode}:epoch: {i}, Actor Loss: {actor_loss}"
                         f"    Critic Loss: {critic_history.history['loss']}")
+            return actor_grads
 
     def get_action(self, state):
         logger.debug("get actions with batch train state ... ")
