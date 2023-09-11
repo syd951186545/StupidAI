@@ -167,12 +167,11 @@ class PPOAgent:
             tape.watch(self.actor_model.trainable_variables)
             # Compute gradients and perform a policy update
             actor_grads = tape.gradient(actor_loss, self.actor_model.trainable_variables)
-            # 一整个批次应用梯度
-            # self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor_model.trainable_variables))
+            self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor_model.trainable_variables))
             self.scalar_record(self.epoch * episode + i, actor_loss, critic_history.history['loss'], )
             logger.info(f"data t: {episode}:epoch: {i}, Actor Loss: {actor_loss}"
                         f"    Critic Loss: {critic_history.history['loss']}")
-            return actor_grads
+            # return actor_grads
 
     def get_action(self, state):
         logger.debug("get actions with batch train state ... ")

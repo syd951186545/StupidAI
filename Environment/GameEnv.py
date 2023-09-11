@@ -107,10 +107,6 @@ def step_visual_decorator(step):
         old_enemy_soldiers = {role_id: copy.deepcopy(soldier) for role_id, soldier in self.teamEnemy.items()}
         old_our_soldiers = {role_id: copy.deepcopy(soldier) for role_id, soldier in self.teamOur.items()}
         for role_id, soldier in old_enemy_soldiers.items():
-            if role_id not in self.teamEnemy:
-                continue
-            if soldier.hp <= 0:
-                continue
             hp = soldier.hp
             side_length = max(0.2, hp / 100)
             enemy = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkred')
@@ -120,10 +116,6 @@ def step_visual_decorator(step):
             hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
             self.elements_to_clear.append(hp_label)
         for role_id, soldier in old_our_soldiers.items():
-            if role_id not in self.teamOur:
-                continue
-            if soldier.hp <= 0:
-                continue
             hp = soldier.hp
             side_length = max(0.2, hp / 100)
             our = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkblue')
@@ -158,10 +150,6 @@ def step_visual_decorator(step):
         new_enemy_soldiers = {role_id: soldier for role_id, soldier in self.teamEnemy.items()}
         new_our_soldiers = {role_id: soldier for role_id, soldier in self.teamOur.items()}
         for role_id, soldier in new_enemy_soldiers.items():
-            if role_id not in self.teamEnemy:
-                continue
-            if soldier.hp <= 0:
-                continue
             hp = soldier.hp
             side_length = max(0.2, hp / 100)
             enemy = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkred')
@@ -171,10 +159,6 @@ def step_visual_decorator(step):
             hp_label = plt.text(soldier.x, soldier.y, hp, fontsize=9, color='gold')
             self.elements_to_clear.append(hp_label)
         for role_id, soldier in new_our_soldiers.items():
-            if role_id not in self.teamOur:
-                continue
-            if soldier.hp <= 0:
-                continue
             hp = soldier.hp
             side_length = max(0.2, hp / 100)
             our = plt.Rectangle((soldier.x, soldier.y), 1, side_length, color='darkblue')
@@ -284,7 +268,7 @@ def visual_enemy_decorator(enemy_step):
 
 class SoldierGameEnv:
     MAX_ROUNDS = config.Training.MAX_ROUNDS
-    REWARD_WIN = 20
+    REWARD_WIN = 100
     REWARD_LOSE = -20
     REWARD_DEFAULT = 0
     REWARD_ATTACK_ENEMY = 2

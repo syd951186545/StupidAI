@@ -21,6 +21,8 @@ def ActorLoacalLiner():
 
 def OutputLiner():
     block = TimeDistributed(Sequential([
+        Dense(256, activation='relu'),
+        Dropout(0.2),
         Dense(64, activation='relu'),
         Dropout(0.2),
         Dense(9, activation='softmax')

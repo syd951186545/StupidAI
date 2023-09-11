@@ -81,7 +81,7 @@ def collect_data(env, agent):
 def Start():
     env = SoldierGameEnv()
     agent = PPOAgent()
-    agent.load_model()
+    # agent.load_model()
     if config.Training.sample_agent:
         sample_agent = PPOAgent()
         __TrainLoop(env, sample_agent, agent)
@@ -98,7 +98,6 @@ def data_generator(tra_datasets):
 def __TrainLoop(env, sample_agent, agent):
     for episode in range(config.Training.EPOCH):
         # 每一个回合开始都要重置隐藏状态
-        agent.actor_model.reset_hidden_states()
         if sample_agent:
             sample_agent.actor_model.reset_hidden_states()
             tra_datasets = collect_data(env, sample_agent)
@@ -122,11 +121,17 @@ def __TrainLoop(env, sample_agent, agent):
             tf.TensorSpec(shape=(None, 1), dtype=tf.bool)
         )).batch(100, drop_remainder=False)
 
-        # 采集完数据后，重置隐藏状态，因为采集过程中隐藏状态已经被更新了
-        agent.actor_model.reset_hidden_states()
+        # 100个batch size实际是画面时间步长
         for batch in dataset:
             batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = batch
-            agent.train(episode, batch_inputs=batch)
+            batch_states = tuple([tf.transpose(s, [1, 0, 2, 3, 4]) for s in batch_states])
+            batch_actions = tf.transpose(batch_actions, [1, 0, 2])
+            batch_next_states = tuple([tf.transpose(s, [1, 0, 2, 3, 4]) for s in batch_next_states])
+            batch_rewards = tf.transpose(batch_rewards, [1, 0, 2])
+            batch_dones = tf.transpose(batch_dones, [1, 0, 2])
+            batch = (batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones)
+
+            agent.update(episode, batch_inputs=batch)
             avg_reward = tf.reduce_mean(batch_rewards)
             with config.Training.training_tf_writer.as_default():
                 tf.summary.scalar("Average_Reward", avg_reward, step=episode)
