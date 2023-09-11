@@ -99,8 +99,9 @@ class PPOAgent:
         :return:
         """
         batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = batch_inputs
+        batch_size = batch_dones.shape[0]
         accumulated_grads = [tf.zeros_like(var) for var in self.actor_model.trainable_variables]
-        for t in range(100):
+        for t in range(batch_size):
             # 提取每一帧的数据，手动循环以更新隐藏状态
             state = tuple([s[t:t + 1] for s in batch_states])  # 注意：保持维度
             action = batch_actions[t:t + 1]
@@ -111,7 +112,7 @@ class PPOAgent:
             grads = self.update(t, batch_inputs=_input)
             accumulated_grads = [acc_grad + grad for acc_grad, grad in zip(accumulated_grads, grads)]
 
-        averaged_grads = [grad / 100 for grad in accumulated_grads]
+        averaged_grads = [grad / batch_size for grad in accumulated_grads]
         # 应用累积梯度
         self.actor_optimizer.apply_gradients(zip(averaged_grads, self.actor_model.trainable_variables))
 
@@ -169,7 +170,7 @@ class PPOAgent:
             # 一整个批次应用梯度
             # self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor_model.trainable_variables))
             self.scalar_record(self.epoch * episode + i, actor_loss, critic_history.history['loss'], )
-            logger.info(f"Episode: {episode}:epoch: {i}, Actor Loss: {actor_loss}"
+            logger.info(f"data t: {episode}:epoch: {i}, Actor Loss: {actor_loss}"
                         f"    Critic Loss: {critic_history.history['loss']}")
             return actor_grads
 

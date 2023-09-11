@@ -81,7 +81,7 @@ def collect_data(env, agent):
 def Start():
     env = SoldierGameEnv()
     agent = PPOAgent()
-    # agent.load_model()
+    agent.load_model()
     if config.Training.sample_agent:
         sample_agent = PPOAgent()
         __TrainLoop(env, sample_agent, agent)

@@ -97,10 +97,12 @@ def step_visual_decorator(step):
             element.remove()
         self.elements_to_clear.clear()
         if not self.title_round:
-            self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top', horizontalalignment='left')
+            self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top',
+                                             horizontalalignment='left')
         else:
             self.title_round.remove()
-            self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top', horizontalalignment='left')
+            self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top',
+                                             horizontalalignment='left')
         # 1、绘制敌我士兵
         old_enemy_soldiers = {role_id: copy.deepcopy(soldier) for role_id, soldier in self.teamEnemy.items()}
         old_our_soldiers = {role_id: copy.deepcopy(soldier) for role_id, soldier in self.teamOur.items()}
@@ -317,7 +319,8 @@ class SoldierGameEnv:
             return
         plt.close()
         self.fig, self.ax = plt.subplots()
-        self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top', horizontalalignment='left')
+        self.title_round = self.fig.text(0.02, 0.98, f'当前回合={self.cur_round}', verticalalignment='top',
+                                         horizontalalignment='left')
         self.ax.set_xticks(np.arange(0, self.width + 1, 5))
         self.ax.set_yticks(np.arange(0, self.height + 1, 5))
         self.ax.set_xlim(0, self.width)
@@ -468,8 +471,8 @@ class SoldierGameEnv:
     def __is_game_done(self):
         # TODO Reward
         if len(self.teamEnemy) == 0:
-            for _id,soldier in self.soldier_reward.items():
-                self.soldier_reward[_id] += self.REWARD_WIN*(100-self.cur_round)/100
+            for _id, soldier in self.soldier_reward.items():
+                self.soldier_reward[_id] += self.REWARD_WIN * (100 - self.cur_round) / 100
             return [True, ] * 10
         elif len(self.teamOur) == 0:
             return [True, ] * 10
